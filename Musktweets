@@ -1,0 +1,153 @@
+
+em_tweets<-get_timeline("ElonMusk",n=5000)
+
+#tweet frequency over years
+
+month_lookup<-c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+em_tweets$month<-factor(month_lookup[month(em_tweets$created_at)],month_lookup)
+
+#plot 1
+
+ggplot(data = em_tweets,
+  aes(x=em_tweets$month,
+  group=factor(year(created_at)), color=factor(year(created_at)))) +
+  geom_line(stat="count") +
+  geom_point(stat="count") +
+  labs(x="Month", colour="Year",y="Number of tweets")+theme_classic()
+
+#tweet frequency over months
+
+# plot 2 
+
+ggplot(data = em_tweets, aes(x = em_tweets$month)) +
+  geom_bar(aes(fill = ..count..)) +
+  xlab("Month") + ylab("Number of tweets")+theme_classic()
+
+
+#sentiment 
+
+#install.packages("syuzhet")
+library(syuzhet)
+
+primary<-em_tweets$text
+primary <- iconv(primary, from="UTF-8", to="ASCII", sub="")
+primary<-gsub("(RT|via)((?:\\b\\w*@\\w+)+)","",primary)
+primary<-gsub("@\\w+","",primary)
+primary<-gsub(" ?(f|ht)tp(s?)://(.*)[.][a-z]+?(/)[[:alnum:]]*", "", primary)
+primary<- gsub('[[:digit:]]+', '', primary)
+primary<- gsub('[[:punct:]]+', '', primary)
+primary<- gsub("([[:alpha:]])\1+", "", primary)
+primary<- gsub("\\d","",primary)
+
+ew_primary<-get_nrc_sentiment(primary)
+primaryscores<-data.frame(colSums(ew_primary))
+names(primaryscores) <- "Score"
+primaryscores <- cbind("sentiment"=rownames(primaryscores),primaryscores)
+rownames(primaryscores) <- NULL
+
+#plot 3
+
+ggplot(data=primaryscores,aes(x=sentiment,y=Score))+
+  geom_bar(aes(fill=sentiment),stat = "identity")+
+  theme(legend.position="none")+
+  xlab("Sentiments")+ylab("Scores")+
+  ggtitle("Total sentiment based on scores")+theme_minimal()
+
+#sentiment last 12 months
+
+em_12<-em_tweets%>%filter(year(created_at)==2018)%>%group_by(month(created_at))
+month_reference<-month(em_12$created_at)
+
+primary2<-em_12$text
+primary2 <- iconv(primary2, from="UTF-8", to="ASCII", sub="")
+primary2<-gsub("(RT|via)((?:\\b\\w*@\\w+)+)","",primary2)
+primary2<-gsub("@\\w+","",primary2)
+primary2<-gsub(" ?(f|ht)tp(s?)://(.*)[.][a-z]+?(/)[[:alnum:]]*", "", primary2)
+primary2<- gsub('[[:digit:]]+', '', primary2)
+primary2<- gsub('[[:punct:]]+', '', primary2)
+primary2<- gsub("([[:alpha:]])\1+", "", primary2)
+primary2<- gsub("\\d","",primary2)
+
+#july
+july_sentiment<-data.frame(colSums(get_nrc_sentiment(primary2[month_reference==7])))
+
+#june
+june_sentiment<-data.frame(colSums(get_nrc_sentiment(primary2[month_reference==6])))
+
+#may
+may_sentiment<-data.frame(colSums(get_nrc_sentiment(primary2[month_reference==5])))
+
+#april
+april_sentiment<-data.frame(colSums(get_nrc_sentiment(primary2[month_reference==4])))
+
+#march
+march_sentiment<-data.frame(colSums(get_nrc_sentiment(primary2[month_reference==3])))
+
+#february
+february_sentiment<-data.frame(colSums(get_nrc_sentiment(primary2[month_reference==2])))
+
+#january
+january_sentiment<-data.frame(colSums(get_nrc_sentiment(primary2[month_reference==1])))
+
+monthly_sentiment<-data.frame(january_sentiment,february_sentiment,march_sentiment,april_sentiment,may_sentiment,june_sentiment,july_sentiment)
+
+colnames(monthly_sentiment)<-c("January","February","March","April","May","June","July")
+
+install.packages('data.table')
+library(data.table)
+
+monthly_sentiment<-setDT(monthly_sentiment,keep.rownames=TRUE)[]
+
+colnames(monthly_sentiment)[1]<-"sentiment"
+
+monthly_sentiment<-gather(monthly_sentiment,"month","value",2:8)
+monthly_sentiment$month<-factor(monthly_sentiment$month,levels=c("January","February","March","April","May","June","July"))
+
+#plot 4
+
+ggplot(data=monthly_sentiment,aes(x=month,y=value,group=sentiment))+
+geom_line(aes(color=factor(sentiment)))+
+geom_point(aes(color=factor(sentiment)))+
+labs(x="Month", colour="Sentiment",y="Value")+
+theme_minimal()
+
+
+#word cloud
+
+em_text<-em_tweets$text
+
+em_text_corpus<-Corpus(VectorSource(em_text))
+
+em_text_corpus<-tm_map(em_text_corpus,removePunctuation)
+
+em_text_corpus<-tm_map(em_text_corpus,content_transformer(tolower))
+
+em_text_corpus<-tm_map(em_text_corpus,function(x) removeWords(x,stopwords()))
+
+em_text_corpus<-tm_map(em_text_corpus,removeWords,c("RT","are","that"))
+
+#remove additional stop words
+em_text_corpus<-tm_map(em_text_corpus,removeWords,c("will","just","like","dont","even","also","get","actually","going","really","know","right","exactly","way"))
+
+removeURL<-function(x) gsub("http[[:alnum:]]*","",x)
+
+removePUNC<-function(x) gsub('[[:punct:]]','',x)
+
+removeNUMB<-function(x) gsub('\\d','',x)
+
+
+em_text_corpus<-tm_map(em_text_corpus,content_transformer(removeURL))
+
+em_text_corpus<-tm_map(em_text_corpus,content_transformer(removePUNC))
+
+em_text_corpus<-tm_map(em_text_corpus,content_transformer(removeNUMB))
+
+em2<-TermDocumentMatrix(em_text_corpus)
+
+em2<-as.matrix(em2)
+
+em2<-sort(rowSums(em2),decreasing=TRUE)
+
+em2<-data.frame(word=names(em2),freq=em2)
+
+wordcloud(em_text_corpus,min.freq=1,max.words=50,scale=c(2.5,1),colors=brewer.pal(8,"Accent"),random.color=T,random.order=F)
