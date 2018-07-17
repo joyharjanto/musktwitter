@@ -1,0 +1,61 @@
+#raw twitter scraping
+elon_raw<-searchTwitter("elon",lang="en",n=1000)
+
+
+#converting tweets to data frame
+elon.df<-twListToDF(elon_raw)
+
+write.csv(elon.df,file="trump.csv")
+dataelon<-read.csv("elon.csv")
+dataelon$text<-as.factor(dataelon$text)
+elon.scores<-score.sentiment(dataelon$text,pos.words,neg.words,.progress='text')
+
+#distribution of sentiment scores
+summary(elon.scores$score)
+hist(elon.scores$score)
+
+
+
+elon_text<-sapply(elon_raw,function(x) x$getText())
+
+elon_text_corpus<-Corpus(VectorSource(elon_text))
+
+elon_text_corpus<-tm_map(elon_text_corpus,removePunctuation)
+
+elon_text_corpus<-tm_map(elon_text_corpus,content_transformer(tolower))
+
+elon_text_corpus<-tm_map(elon_text_corpus,function(x) removeWords(x,stopwords()))
+
+elon_text_corpus<-tm_map(elon_text_corpus,removeWords,c("RT","are","that"))
+
+#remove additional stop words
+elon_text_corpus<-tm_map(elon_text_corpus,removeWords,c("actually","just","calls","like","telling","alexqarbuckle","bring","whmullally","for","this","its","out","how","but","know","from","can","you","was","tcosgrrgntdk","take","his","than","their","who","got","doesnt","hippieswordfish","starting","thing","about","has","mineifiwildout"))
+
+removeURL<-function(x) gsub("http[[:alnum:]]*","",x)
+
+removePUNC<-function(x) gsub('[[:punct:]]','',x)
+
+removeNUMB<-function(x) gsub('\\d','',x)
+
+
+elon_text_corpus<-tm_map(elon_text_corpus,content_transformer(removeURL))
+
+elon_text_corpus<-tm_map(elon_text_corpus,content_transformer(removePUNC))
+
+elon_text_corpus<-tm_map(elon_text_corpus,content_transformer(removeNUMB))
+
+elon_2<-TermDocumentMatrix(elon_text_corpus)
+
+elon_2<-as.matrix(elon_2)
+
+elon_2<-sort(rowSums(elon_2),decreasing=TRUE)
+
+elon_2<-data.frame(word=names(elon_2))
+
+elon_2<-data.frame(word=names(elon_2),freq=elon_2)
+
+
+set.seed(999)
+
+wordcloud(elon_text_corpus,min.freq=1,max.words=50,scale=c(2.5,1),colors=brewer.pal(8,"Accent"),random.color=T,random.order=F)
+
