@@ -1,0 +1,6 @@
+library(httr)
+library(rtweet)
+library(twitteR)
+
+twitter_token<-create_token(app = "joysentiment1", api_key, api_secret,
+  accessToken, accessTokenSecret, set_renv = TRUE)
