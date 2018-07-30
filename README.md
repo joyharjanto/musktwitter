@@ -8,3 +8,6 @@ https://cran.r-project.org/web/packages/rtweet/vignettes/auth.html #establish AP
 https://www.tidytextmining.com #Introduction to tidy text mining and sentiment analysis with R
 https://www.slideshare.net/ajayohri/twitter-analysis-by-kaify-rais #code for sentiment analysis using points
 https://analyzecore.com/2014/04/28/twitter-sentiment-analysis/ #project inspiration
+
+Project featured on Towards Data Science
+https://towardsdatascience.com/elon-musk-twitter-adf324120b3f
